@@ -309,7 +309,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 147 (last added: recurrent_param)
+// LayerParameter next available layer-specific ID: 148 (last added: recurrent_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -365,6 +365,7 @@ message LayerParameter {
   optional ArgMaxParameter argmax_param = 103;
   optional BatchNormParameter batch_norm_param = 139;
   optional BiasParameter bias_param = 141;
+  optional CenterLossParameter center_loss_param = 147;
   optional ConcatParameter concat_param = 104;
   optional ContrastiveLossParameter contrastive_loss_param = 105;
   optional ConvolutionParameter convolution_param = 106;
@@ -393,6 +394,7 @@ message LayerParameter {
   optional PowerParameter power_param = 122;
   optional PReLUParameter prelu_param = 131;
   optional PythonParameter python_param = 130;
+  optional RandomSamplingSoftmaxLossParameter rss_loss_param = 100003;
   optional RecurrentParameter recurrent_param = 146;
   optional ReductionParameter reduction_param = 136;
   optional ReLUParameter relu_param = 123;
@@ -405,8 +407,60 @@ message LayerParameter {
   optional TanHParameter tanh_param = 127;
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
+  optional TripletLossParameter triplet_loss_param = 100000;
+  optional TripletMyLossParameter triplet_my_loss_param = 100001;
   optional WindowDataParameter window_data_param = 129;
+  //For Faster RCNN
+  optional ROIPoolingParameter roi_pooling_param = 201;
+  optional SmoothL1LossParameter smooth_l1_loss_param = 202;
+  optional PadChannelParameter pad_channel_param = 203;
+  optional ROIMaskPoolingParameter roi_mask_pooling_param = 204;
+  optional BoxAnnotatorOHEMParameter box_annotator_ohem_param = 205;
+  optional PSROIPoolingParameter psroi_pooling_param = 206;
 }
+
+// For Faster RCNN
+message ROIPoolingParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
+}
+message ROIMaskPoolingParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
+  optional int32 half_part = 4 [default = 0];
+  optional float roi_scale = 5 [default = 1];
+  optional float mask_scale = 6 [default = 0];
+}
+message SmoothL1LossParameter {
+  // SmoothL1Loss(x) =
+  //   0.5 * (sigma * x) ** 2    -- if x < 1.0 / sigma / sigma
+  //   |x| - 0.5 / sigma / sigma -- otherwise
+  optional float sigma = 1 [default = 1];
+}
+message PadChannelParameter {
+  // Specify the data source.
+  optional uint32 num_channels_to_pad = 1 [default = 0];
+}
+message BoxAnnotatorOHEMParameter {
+  required uint32 roi_per_img = 1; // number of rois for training
+  optional int32 ignore_label = 2 [default = -1]; // ignore_label in scoring
+}
+message PSROIPoolingParameter {
+   required float spatial_scale = 1; 
+   required int32 output_dim = 2; // output channel number
+   required int32 group_size = 3; // number of groups to encode position-sensitive score maps
+ }
+
 
 // Message that stores parameters used to apply transformation
 // to the data layer's data
@@ -429,6 +483,11 @@ message TransformationParameter {
   optional bool force_color = 6 [default = false];
   // Force the decoded image to have 1 color channels.
   optional bool force_gray = 7 [default = false];
+// Specify if we would like to have non-square crop. Will overwrite crop_size.
+  optional uint32 crop_height = 8 [default = 0];
+  optional uint32 crop_width = 9 [default = 0];
+  // Specify if we would like to have discrete multiple scales.
+  repeated float multi_scale_levels = 10;
 }
 
 // Message that stores parameters shared by loss layers
@@ -489,6 +548,15 @@ message ArgMaxParameter {
   // By default ArgMaxLayer maximizes over the flattened trailing dimensions
   // for each index of the first / num dimension.
   optional int32 axis = 3;
+}
+
+message CenterLossParameter {
+  optional uint32 num_output = 1; // The number of outputs for the layer
+  optional FillerParameter center_filler = 2; // The filler for the centers
+  // The first axis to be lumped into a single inner product computation;
+  // all preceding axes are retained in the output.
+  // May be negative to index from the end (e.g., -1 for the last axis).
+  optional int32 axis = 3 [default = 1];
 }
 
 message ConcatParameter {
@@ -665,6 +733,7 @@ message DataParameter {
 
 message DropoutParameter {
   optional float dropout_ratio = 1 [default = 0.5]; // dropout ratio
+  optional bool scale_train = 2 [default = true];  // scale train or test phase
 }
 
 // DummyDataLayer fills any number of arbitrarily shaped blobs with random
@@ -801,6 +870,7 @@ message ImageDataParameter {
   // data.
   optional bool mirror = 6 [default = false];
   optional string root_folder = 12 [default = ""];
+  optional uint32 pair_size = 13 [default = 1];
 }
 
 message InfogainLossParameter {
@@ -932,6 +1002,11 @@ message PythonParameter {
   // If true, each worker solver sequentially run forward from this layer.
   // This value should be set true if you are using it as a data layer.
   optional bool share_in_parallel = 4 [default = false];
+}
+
+message RandomSamplingSoftmaxLossParameter {
+  optional int32 random_sampling_num = 1 [default = 100];
+  optional string random_sampling_policy = 2 [default = "random"];
 }
 
 // Message that stores parameters used by RecurrentLayer
@@ -1157,6 +1232,23 @@ message ThresholdParameter {
   optional float threshold = 1 [default = 0]; // Strictly positive values
 }
 
+message TripletLossParameter {
+  //margin for negative triplet
+  optional float margin = 1 [default = 1.0];
+  optional uint32 losstype = 2 [default = 1];
+  optional uint32 num_negatives = 3 [default = 3];
+  optional uint32 use_pair = 4 [default = 0];
+  optional int32 axis = 5 [default = 1];
+}
+
+message TripletMyLossParameter {
+  //margin for negative triplet
+  optional uint32 hard_num = 1[default = 1]; 
+  optional uint32 rand_num = 2[default = 3];
+  optional uint32 bg_label = 4[default = 0];
+  optional float margin = 3 [default = 0.2];
+}
+
 message WindowDataParameter {
   // Specify the data source.
   optional string source = 1;
@@ -1188,6 +1280,9 @@ message WindowDataParameter {
   optional bool cache_images = 12 [default = false];
   // append root_folder to locate images
   optional string root_folder = 13 [default = ""];
+
+  //Add For FRCNN config file path
+  optional string config = 20 [default = ""];
 }
 
 message SPPParameter {
@@ -1254,6 +1349,9 @@ message V1LayerParameter {
     TANH = 23;
     WINDOW_DATA = 24;
     THRESHOLD = 31;
+    NORM = 41;
+    NORMALIZE = 42;
+    FeatSelect = 43;
   }
   optional LayerType type = 5;
   repeated BlobProto blobs = 6;
@@ -1287,6 +1385,7 @@ message V1LayerParameter {
   optional MVNParameter mvn_param = 34;
   optional PoolingParameter pooling_param = 19;
   optional PowerParameter power_param = 21;
+  optional RandomSamplingSoftmaxLossParameter rss_loss_param = 46;
   optional ReLUParameter relu_param = 30;
   optional SigmoidParameter sigmoid_param = 38;
   optional SoftmaxParameter softmax_param = 39;
@@ -1297,6 +1396,8 @@ message V1LayerParameter {
   optional TransformationParameter transform_param = 36;
   optional LossParameter loss_param = 42;
   optional V0LayerParameter layer = 1;
+  optional TripletLossParameter triplet_loss_param = 43;
+  optional TripletMyLossParameter triplet_my_loss_param = 45;
 }
 
 // DEPRECATED: V0LayerParameter is the old way of specifying layer parameters
